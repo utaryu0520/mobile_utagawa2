@@ -13,11 +13,13 @@ class TodoItem {
   final int key;
   final String text;
   final DateTime? dueDate;
+  final String category;
 
   TodoItem({
     required this.key,
     required this.text,
     this.dueDate,
+    required this.category,
   });
 }
 
@@ -47,6 +49,16 @@ class _TodoScreenState extends State<TodoScreen> {
   SortType _sortType = SortType.newest;
 
   DateTime? _selectedDateTime;
+
+  final List<String> _categories = [
+    '未設定',
+    '仕事',
+    '家事',
+    'プライベート',
+    'その他',
+  ];
+
+  String _selectedCategory = '未設定';
 
   @override
   void initState() {
@@ -123,6 +135,7 @@ class _TodoScreenState extends State<TodoScreen> {
             'key': todo.key,
             'text': todo.text,
             'dueDate': todo.dueDate?.toIso8601String(),
+            'category': todo.category,
           },
         )
         .toList();
@@ -153,6 +166,8 @@ class _TodoScreenState extends State<TodoScreen> {
             dueDate: snapshot.value['dueDate'] != null
                 ? DateTime.parse(snapshot.value['dueDate'] as String)
                 : null,
+            category:
+                snapshot.value['category'] as String? ?? '未設定',
           ),
         )
         .toList();
@@ -174,6 +189,7 @@ class _TodoScreenState extends State<TodoScreen> {
           {
             'text': item['text'],
             'dueDate': item['dueDate'],
+            'category': item['category'] ?? '未設定',
           },
         );
 
@@ -184,6 +200,7 @@ class _TodoScreenState extends State<TodoScreen> {
             dueDate: item['dueDate'] != null
                 ? DateTime.parse(item['dueDate'])
                 : null,
+            category: item['category'] ?? '未設定',
           ),
         );
       }
@@ -211,6 +228,7 @@ class _TodoScreenState extends State<TodoScreen> {
         {
           'text': text,
           'dueDate': null,
+          'category': '未設定',
         },
       );
 
@@ -219,6 +237,7 @@ class _TodoScreenState extends State<TodoScreen> {
           key: key,
           text: text,
           dueDate: null,
+          category: '未設定',
         ),
       );
     }
@@ -276,6 +295,7 @@ class _TodoScreenState extends State<TodoScreen> {
       {
         'text': text,
         'dueDate': _selectedDateTime?.toIso8601String(),
+        'category': _selectedCategory,
       },
     );
 
@@ -287,12 +307,15 @@ class _TodoScreenState extends State<TodoScreen> {
           key: key,
           text: text,
           dueDate: _selectedDateTime,
+          category: _selectedCategory,
         ),
       );
 
       _controller.clear();
 
       _selectedDateTime = null;
+
+      _selectedCategory = '未設定';
     });
 
     _sortTodos();
@@ -436,6 +459,38 @@ class _TodoScreenState extends State<TodoScreen> {
 
                 Row(
                   children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: _selectedCategory,
+
+                        decoration: const InputDecoration(
+                          labelText: 'カテゴリ',
+                          border: OutlineInputBorder(),
+                        ),
+
+                        items: _categories.map((category) {
+                          return DropdownMenuItem(
+                            value: category,
+                            child: Text(category),
+                          );
+                        }).toList(),
+
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() {
+                              _selectedCategory = value;
+                            });
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 12),
+
+                Row(
+                  children: [
                     ElevatedButton.icon(
                       onPressed: _selectDateTime,
                       icon: const Icon(Icons.calendar_month),
@@ -480,8 +535,17 @@ class _TodoScreenState extends State<TodoScreen> {
                       return ListTile(
                         title: Text(todo.text),
 
-                        subtitle: Text(
-                          '期限: ${_formatDate(todo.dueDate)}',
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'カテゴリ: ${todo.category}',
+                            ),
+
+                            Text(
+                              '期限: ${_formatDate(todo.dueDate)}',
+                            ),
+                          ],
                         ),
 
                         trailing: IconButton(
