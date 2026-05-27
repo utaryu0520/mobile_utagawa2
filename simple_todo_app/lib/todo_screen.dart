@@ -12,10 +12,12 @@ final StoreRef<int, Map<String, dynamic>> _todoStore =
 class TodoItem {
   final int key;
   final String text;
+  final DateTime? dueDate;
 
   TodoItem({
     required this.key,
     required this.text,
+    this.dueDate,
   });
 }
 
@@ -23,6 +25,7 @@ enum SortType {
   newest,
   oldest,
   alphabetical,
+  dueDate,
 }
 
 class TodoScreen extends StatefulWidget {
@@ -42,6 +45,8 @@ class _TodoScreenState extends State<TodoScreen> {
   bool _isLoading = true;
 
   SortType _sortType = SortType.newest;
+
+  DateTime? _selectedDateTime;
 
   @override
   void initState() {
@@ -87,6 +92,24 @@ class _TodoScreenState extends State<TodoScreen> {
         case SortType.alphabetical:
           _todos.sort((a, b) => a.text.compareTo(b.text));
           break;
+
+        case SortType.dueDate:
+          _todos.sort((a, b) {
+            if (a.dueDate == null && b.dueDate == null) {
+              return 0;
+            }
+
+            if (a.dueDate == null) {
+              return 1;
+            }
+
+            if (b.dueDate == null) {
+              return -1;
+            }
+
+            return a.dueDate!.compareTo(b.dueDate!);
+          });
+          break;
       }
     });
   }
@@ -99,6 +122,7 @@ class _TodoScreenState extends State<TodoScreen> {
           (todo) => {
             'key': todo.key,
             'text': todo.text,
+            'dueDate': todo.dueDate?.toIso8601String(),
           },
         )
         .toList();
@@ -126,6 +150,9 @@ class _TodoScreenState extends State<TodoScreen> {
           (snapshot) => TodoItem(
             key: snapshot.key,
             text: snapshot.value['text'] as String,
+            dueDate: snapshot.value['dueDate'] != null
+                ? DateTime.parse(snapshot.value['dueDate'] as String)
+                : null,
           ),
         )
         .toList();
@@ -144,13 +171,19 @@ class _TodoScreenState extends State<TodoScreen> {
       for (final item in data) {
         final key = await _todoStore.add(
           _db,
-          {'text': item['text']},
+          {
+            'text': item['text'],
+            'dueDate': item['dueDate'],
+          },
         );
 
         _todos.add(
           TodoItem(
             key: key,
             text: item['text'],
+            dueDate: item['dueDate'] != null
+                ? DateTime.parse(item['dueDate'])
+                : null,
           ),
         );
       }
@@ -175,13 +208,17 @@ class _TodoScreenState extends State<TodoScreen> {
     for (final text in sampleTodos) {
       final key = await _todoStore.add(
         _db,
-        {'text': text},
+        {
+          'text': text,
+          'dueDate': null,
+        },
       );
 
       _todos.add(
         TodoItem(
           key: key,
           text: text,
+          dueDate: null,
         ),
       );
     }
@@ -193,6 +230,40 @@ class _TodoScreenState extends State<TodoScreen> {
     await _backupToSharedPreferences();
   }
 
+  Future<void> _selectDateTime() async {
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+
+    if (pickedDate == null) {
+      return;
+    }
+
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
+
+    if (pickedTime == null) {
+      return;
+    }
+
+    final dateTime = DateTime(
+      pickedDate.year,
+      pickedDate.month,
+      pickedDate.day,
+      pickedTime.hour,
+      pickedTime.minute,
+    );
+
+    setState(() {
+      _selectedDateTime = dateTime;
+    });
+  }
+
   Future<void> _addTodo() async {
     final text = _controller.text.trim();
 
@@ -202,7 +273,10 @@ class _TodoScreenState extends State<TodoScreen> {
 
     final key = await _todoStore.add(
       _db,
-      {'text': text},
+      {
+        'text': text,
+        'dueDate': _selectedDateTime?.toIso8601String(),
+      },
     );
 
     print('Added todo with key $key: $text');
@@ -212,10 +286,13 @@ class _TodoScreenState extends State<TodoScreen> {
         TodoItem(
           key: key,
           text: text,
+          dueDate: _selectedDateTime,
         ),
       );
 
       _controller.clear();
+
+      _selectedDateTime = null;
     });
 
     _sortTodos();
@@ -247,7 +324,24 @@ class _TodoScreenState extends State<TodoScreen> {
 
       case SortType.alphabetical:
         return '名前順';
+
+      case SortType.dueDate:
+        return '期限順';
     }
+  }
+
+  String _formatDate(DateTime? date) {
+    if (date == null) {
+      return '期限なし';
+    }
+
+    final year = date.year;
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    final hour = date.hour.toString().padLeft(2, '0');
+    final minute = date.minute.toString().padLeft(2, '0');
+
+    return '$year/$month/$day $hour:$minute';
   }
 
   @override
@@ -300,6 +394,11 @@ class _TodoScreenState extends State<TodoScreen> {
                     value: SortType.alphabetical,
                     child: Text('名前順'),
                   ),
+
+                  PopupMenuItem(
+                    value: SortType.dueDate,
+                    child: Text('期限順'),
+                  ),
                 ],
               ),
             ],
@@ -312,21 +411,46 @@ class _TodoScreenState extends State<TodoScreen> {
           Padding(
             padding: const EdgeInsets.all(16.0),
 
-            child: Row(
+            child: Column(
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _controller,
 
-                    decoration: const InputDecoration(
-                      hintText: '新しいToDoを入力',
+                        decoration: const InputDecoration(
+                          hintText: '新しいToDoを入力',
+                        ),
+                      ),
                     ),
-                  ),
+
+                    IconButton(
+                      icon: const Icon(Icons.add),
+                      onPressed: _addTodo,
+                    ),
+                  ],
                 ),
 
-                IconButton(
-                  icon: const Icon(Icons.add),
-                  onPressed: _addTodo,
+                const SizedBox(height: 12),
+
+                Row(
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: _selectDateTime,
+                      icon: const Icon(Icons.calendar_month),
+                      label: const Text('日時設定'),
+                    ),
+
+                    const SizedBox(width: 12),
+
+                    Expanded(
+                      child: Text(
+                        _formatDate(_selectedDateTime),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -351,8 +475,14 @@ class _TodoScreenState extends State<TodoScreen> {
                     },
 
                     itemBuilder: (context, index) {
+                      final todo = _todos[index];
+
                       return ListTile(
-                        title: Text(_todos[index].text),
+                        title: Text(todo.text),
+
+                        subtitle: Text(
+                          '期限: ${_formatDate(todo.dueDate)}',
+                        ),
 
                         trailing: IconButton(
                           icon: const Icon(Icons.delete),
