@@ -6,15 +6,17 @@ import 'database_factory.dart';
 
 const String _kDbName = 'todos.db';
 
-final StoreRef<int, Map<String, dynamic>> _todoStore = intMapStoreFactory.store(
-  'todos',
-);
+final StoreRef<int, Map<String, dynamic>> _todoStore =
+    intMapStoreFactory.store('todos');
 
 class TodoItem {
   final int key;
   final String text;
 
-  TodoItem({required this.key, required this.text});
+  TodoItem({
+    required this.key,
+    required this.text,
+  });
 }
 
 enum SortType {
@@ -93,10 +95,18 @@ class _TodoScreenState extends State<TodoScreen> {
     final prefs = await SharedPreferences.getInstance();
 
     final data = _todos
-        .map((todo) => {'key': todo.key, 'text': todo.text})
+        .map(
+          (todo) => {
+            'key': todo.key,
+            'text': todo.text,
+          },
+        )
         .toList();
 
-    await prefs.setString('todos_backup', jsonEncode(data));
+    await prefs.setString(
+      'todos_backup',
+      jsonEncode(data),
+    );
 
     print('Backed up ${data.length} todos to SharedPreferences');
   }
@@ -104,7 +114,9 @@ class _TodoScreenState extends State<TodoScreen> {
   Future<void> _loadTodos() async {
     final records = await _todoStore.find(
       _db,
-      finder: Finder(sortOrders: [SortOrder(Field.key)]),
+      finder: Finder(
+        sortOrders: [SortOrder(Field.key)],
+      ),
     );
 
     print('Loaded ${records.length} todos from DB');
@@ -130,7 +142,10 @@ class _TodoScreenState extends State<TodoScreen> {
       final data = jsonDecode(backup) as List;
 
       for (final item in data) {
-        final key = await _todoStore.add(_db, {'text': item['text']});
+        final key = await _todoStore.add(
+          _db,
+          {'text': item['text']},
+        );
 
         _todos.add(
           TodoItem(
@@ -158,7 +173,10 @@ class _TodoScreenState extends State<TodoScreen> {
     ];
 
     for (final text in sampleTodos) {
-      final key = await _todoStore.add(_db, {'text': text});
+      final key = await _todoStore.add(
+        _db,
+        {'text': text},
+      );
 
       _todos.add(
         TodoItem(
@@ -182,7 +200,10 @@ class _TodoScreenState extends State<TodoScreen> {
       return;
     }
 
-    final key = await _todoStore.add(_db, {'text': text});
+    final key = await _todoStore.add(
+      _db,
+      {'text': text},
+    );
 
     print('Added todo with key $key: $text');
 
@@ -243,79 +264,96 @@ class _TodoScreenState extends State<TodoScreen> {
       appBar: AppBar(
         title: const Text('ToDo List'),
         actions: [
-          PopupMenuButton<SortType>(
-            icon: const Icon(Icons.sort),
-            onSelected: (value) {
-              setState(() {
-                _sortType = value;
-              });
+          Row(
+            children: [
+              Text(
+                _getSortLabel(),
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
 
-              _sortTodos();
-            },
-            itemBuilder: (context) => const [
-              PopupMenuItem(
-                value: SortType.newest,
-                child: Text('新しい順'),
-              ),
-              PopupMenuItem(
-                value: SortType.oldest,
-                child: Text('古い順'),
-              ),
-              PopupMenuItem(
-                value: SortType.alphabetical,
-                child: Text('名前順'),
+              PopupMenuButton<SortType>(
+                icon: const Icon(Icons.sort),
+
+                onSelected: (value) {
+                  setState(() {
+                    _sortType = value;
+                  });
+
+                  _sortTodos();
+                },
+
+                itemBuilder: (context) => const [
+                  PopupMenuItem(
+                    value: SortType.newest,
+                    child: Text('新しい順'),
+                  ),
+
+                  PopupMenuItem(
+                    value: SortType.oldest,
+                    child: Text('古い順'),
+                  ),
+
+                  PopupMenuItem(
+                    value: SortType.alphabetical,
+                    child: Text('名前順'),
+                  ),
+                ],
               ),
             ],
           ),
         ],
       ),
+
       body: Column(
         children: [
           Padding(
             padding: const EdgeInsets.all(16.0),
-            child: Column(
+
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _controller,
-                        decoration: const InputDecoration(
-                          hintText: '新しいToDoを入力',
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.add),
-                      onPressed: _addTodo,
-                    ),
-                  ],
-                ),
+                Expanded(
+                  child: TextField(
+                    controller: _controller,
 
-                const SizedBox(height: 8),
-
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    '並び順: ${_getSortLabel()}',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
+                    decoration: const InputDecoration(
+                      hintText: '新しいToDoを入力',
                     ),
                   ),
+                ),
+
+                IconButton(
+                  icon: const Icon(Icons.add),
+                  onPressed: _addTodo,
                 ),
               ],
             ),
           ),
+
           Expanded(
             child: _todos.isEmpty
                 ? const Center(
                     child: Text('データがありません'),
                   )
-                : ListView.builder(
+                : ListView.separated(
                     itemCount: _todos.length,
+
+                    separatorBuilder: (context, index) {
+                      return const Divider(
+                        color: Colors.black12,
+                        height: 1,
+                        thickness: 1,
+                        indent: 16,
+                        endIndent: 16,
+                      );
+                    },
+
                     itemBuilder: (context, index) {
                       return ListTile(
                         title: Text(_todos[index].text),
+
                         trailing: IconButton(
                           icon: const Icon(Icons.delete),
                           onPressed: () => _removeTodo(index),
