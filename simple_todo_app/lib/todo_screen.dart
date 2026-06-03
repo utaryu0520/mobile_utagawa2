@@ -59,6 +59,7 @@ class _TodoScreenState extends State<TodoScreen> {
   ];
 
   String _selectedCategory = '未設定';
+  String _filterCategory = 'すべて';
 
   @override
   void initState() {
@@ -369,6 +370,11 @@ class _TodoScreenState extends State<TodoScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final filteredTodos = _filterCategory == 'すべて'
+    ? _todos
+    : _todos
+        .where((todo) => todo.category == _filterCategory)
+        .toList();
     if (_isLoading) {
       return const Scaffold(
         body: Center(
@@ -487,6 +493,47 @@ class _TodoScreenState extends State<TodoScreen> {
                   ],
                 ),
 
+const SizedBox(height: 12),
+
+                Row(
+  children: [
+    Expanded(
+      child: DropdownButtonFormField<String>(
+        value: _filterCategory,
+
+        decoration: const InputDecoration(
+          labelText: '表示カテゴリ',
+          border: OutlineInputBorder(),
+        ),
+
+        items: [
+          const DropdownMenuItem(
+            value: 'すべて',
+            child: Text('すべて'),
+          ),
+
+          ..._categories.map(
+            (category) => DropdownMenuItem(
+              value: category,
+              child: Text(category),
+            ),
+          ),
+        ],
+
+        onChanged: (value) {
+          if (value != null) {
+            setState(() {
+              _filterCategory = value;
+            });
+          }
+        },
+      ),
+    ),
+  ],
+),
+
+
+
                 const SizedBox(height: 12),
 
                 Row(
@@ -517,7 +564,7 @@ class _TodoScreenState extends State<TodoScreen> {
                     child: Text('データがありません'),
                   )
                 : ListView.separated(
-                    itemCount: _todos.length,
+                    itemCount: filteredTodos.length,
 
                     separatorBuilder: (context, index) {
                       return const Divider(
@@ -530,7 +577,7 @@ class _TodoScreenState extends State<TodoScreen> {
                     },
 
                     itemBuilder: (context, index) {
-                      final todo = _todos[index];
+                     final todo = filteredTodos[index];
 
                       return ListTile(
                         title: Text(todo.text),
@@ -550,7 +597,14 @@ class _TodoScreenState extends State<TodoScreen> {
 
                         trailing: IconButton(
                           icon: const Icon(Icons.delete),
-                          onPressed: () => _removeTodo(index),
+                          onPressed: () async {
+  final originalIndex =
+      _todos.indexWhere((item) => item.key == todo.key);
+
+  if (originalIndex != -1) {
+    await _removeTodo(originalIndex);
+  }
+},
                         ),
                       );
                     },
