@@ -463,46 +463,77 @@ class _TodoScreenState extends State<TodoScreen> {
 
                 const SizedBox(height: 12),
 
-                Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        value: _selectedCategory,
+               const SizedBox(height: 12),
 
-                        decoration: const InputDecoration(
-                          labelText: 'カテゴリ',
-                          border: OutlineInputBorder(),
-                        ),
-
-                        items: _categories.map((category) {
-                          return DropdownMenuItem(
-                            value: category,
-                            child: Text(category),
-                          );
-                        }).toList(),
-
-                        onChanged: (value) {
-                          if (value != null) {
-                            setState(() {
-                              _selectedCategory = value;
-                            });
-                          }
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-
-const SizedBox(height: 12),
-
-                Row(
+              Row(
+  crossAxisAlignment: CrossAxisAlignment.start,
   children: [
-    Expanded(
+    SizedBox(
+      width: 160,
+      child: DropdownButtonFormField<String>(
+        value: _selectedCategory,
+
+        decoration: const InputDecoration(
+          labelText: 'カテゴリ設定',
+          border: OutlineInputBorder(),
+        ),
+
+        items: _categories.map((category) {
+          return DropdownMenuItem(
+            value: category,
+            child: Text(category),
+          );
+        }).toList(),
+
+        onChanged: (value) {
+          if (value != null) {
+            setState(() {
+              _selectedCategory = value;
+            });
+          }
+        },
+      ),
+    ),
+
+    const SizedBox(width: 8),
+
+    Transform.translate(
+  offset: const Offset(0, -4),
+  child: SizedBox(
+    width: 160,
+    height: 56,
+    child: ElevatedButton.icon(
+      onPressed: _selectDateTime,
+      icon: const Icon(Icons.calendar_month),
+      label: Text(
+        _selectedDateTime == null
+            ? '日時設定'
+            : _formatDate(_selectedDateTime),
+        overflow: TextOverflow.ellipsis,
+      ),
+    ),
+  ),
+),
+  ],
+),
+
+              const SizedBox(height: 20),
+              const Divider(
+  height: 1,
+  thickness: 1,
+  color: Colors.black12,
+),
+              const SizedBox(height: 20),
+
+Row(
+  children: [
+    SizedBox(
+      width: 160,
       child: DropdownButtonFormField<String>(
         value: _filterCategory,
 
         decoration: const InputDecoration(
-          labelText: '表示カテゴリ',
+          labelText: 'カテゴリでフィルタ',
           border: OutlineInputBorder(),
         ),
 
@@ -532,28 +563,9 @@ const SizedBox(height: 12),
   ],
 ),
 
-
-
                 const SizedBox(height: 12),
 
-                Row(
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: _selectDateTime,
-                      icon: const Icon(Icons.calendar_month),
-                      label: const Text('日時設定'),
-                    ),
-
-                    const SizedBox(width: 12),
-
-                    Expanded(
-                      child: Text(
-                        _formatDate(_selectedDateTime),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
+                
               ],
             ),
           ),
