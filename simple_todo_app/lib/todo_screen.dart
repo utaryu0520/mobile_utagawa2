@@ -385,7 +385,7 @@ class _TodoScreenState extends State<TodoScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ToDo List'),
+        title: const Text('TODOリスト'),
         actions: [
           Row(
             children: [
