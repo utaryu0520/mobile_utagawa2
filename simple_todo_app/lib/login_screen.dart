@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'services/auth_service.dart';
 import 'todo_screen.dart';
+import 'screens/register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -9,20 +11,45 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final userController = TextEditingController();
-  final passController = TextEditingController();
+  final _usernameController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _authService = AuthService();
 
-  String errorMessage = '';
+  String _errorMessage = '';
+  bool _isLoading = false;
 
-  void login() {
-    if (userController.text == 'ryusei' && passController.text == 'wiz') {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const TodoScreen()),
-      );
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _login() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
+    final result = await _authService.login(
+      username: _usernameController.text.trim(),
+      password: _passwordController.text,
+    );
+
+    setState(() {
+      _isLoading = false;
+    });
+
+    if (result.success) {
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const TodoScreen()),
+        );
+      }
     } else {
       setState(() {
-        errorMessage = 'ユーザー名またはパスワードが違います';
+        _errorMessage = result.message;
       });
     }
   }
@@ -34,20 +61,81 @@ class _LoginScreenState extends State<LoginScreen> {
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            TextField(
-              controller: userController,
-              decoration: const InputDecoration(labelText: 'ユーザー名'),
+            // ロゴ or タイトル
+            const Padding(
+              padding: EdgeInsets.only(bottom: 32),
+              child: Text(
+                'シンプルToDo',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+              ),
             ),
             TextField(
-              controller: passController,
-              decoration: const InputDecoration(labelText: 'パスワード'),
+              controller: _usernameController,
+              decoration: const InputDecoration(
+                labelText: 'ユーザー名',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.person),
+              ),
+              enabled: !_isLoading,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _passwordController,
+              decoration: const InputDecoration(
+                labelText: 'パスワード',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.lock),
+              ),
               obscureText: true,
+              enabled: !_isLoading,
             ),
-            const SizedBox(height: 20),
-            ElevatedButton(onPressed: login, child: const Text('ログイン')),
-            if (errorMessage.isNotEmpty)
-              Text(errorMessage, style: const TextStyle(color: Colors.red)),
+            const SizedBox(height: 24),
+            if (_errorMessage.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  border: Border.all(color: Colors.red),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  _errorMessage,
+                  style: const TextStyle(color: Colors.red),
+                ),
+              ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _isLoading ? null : _login,
+              child: _isLoading
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('ログイン'),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text('アカウントを持っていませんか？ '),
+                TextButton(
+                  onPressed: _isLoading
+                      ? null
+                      : () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const RegisterScreen(),
+                          ),
+                        ),
+                  child: const Text('登録'),
+                ),
+              ],
+            ),
           ],
         ),
       ),

@@ -3,11 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:sembast/sembast.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'database_factory.dart';
+import 'services/auth_service.dart';
+import 'screens/profile_screen.dart';
 
 const String _kDbName = 'todos.db';
 
-final StoreRef<int, Map<String, dynamic>> _todoStore =
-    intMapStoreFactory.store('todos');
+final StoreRef<int, Map<String, dynamic>> _todoStore = intMapStoreFactory.store(
+  'todos',
+);
 
 class TodoItem {
   final int key;
@@ -23,12 +26,7 @@ class TodoItem {
   });
 }
 
-enum SortType {
-  newest,
-  oldest,
-  alphabetical,
-  dueDate,
-}
+enum SortType { newest, oldest, alphabetical, dueDate }
 
 class TodoScreen extends StatefulWidget {
   const TodoScreen({super.key});
@@ -39,6 +37,7 @@ class TodoScreen extends StatefulWidget {
 
 class _TodoScreenState extends State<TodoScreen> {
   final TextEditingController _controller = TextEditingController();
+  final _authService = AuthService();
 
   late Database _db;
 
@@ -50,13 +49,7 @@ class _TodoScreenState extends State<TodoScreen> {
 
   DateTime? _selectedDateTime;
 
-  final List<String> _categories = [
-    '未設定',
-    '仕事',
-    '家事',
-    'プライベート',
-    'その他',
-  ];
+  final List<String> _categories = ['未設定', '仕事', '家事', 'プライベート', 'その他'];
 
   String _selectedCategory = '未設定';
   String _filterCategory = 'すべて';
@@ -141,10 +134,7 @@ class _TodoScreenState extends State<TodoScreen> {
         )
         .toList();
 
-    await prefs.setString(
-      'todos_backup',
-      jsonEncode(data),
-    );
+    await prefs.setString('todos_backup', jsonEncode(data));
 
     print('Backed up ${data.length} todos to SharedPreferences');
   }
@@ -152,9 +142,7 @@ class _TodoScreenState extends State<TodoScreen> {
   Future<void> _loadTodos() async {
     final records = await _todoStore.find(
       _db,
-      finder: Finder(
-        sortOrders: [SortOrder(Field.key)],
-      ),
+      finder: Finder(sortOrders: [SortOrder(Field.key)]),
     );
 
     print('Loaded ${records.length} todos from DB');
@@ -167,8 +155,7 @@ class _TodoScreenState extends State<TodoScreen> {
             dueDate: snapshot.value['dueDate'] != null
                 ? DateTime.parse(snapshot.value['dueDate'] as String)
                 : null,
-            category:
-                snapshot.value['category'] as String? ?? '未設定',
+            category: snapshot.value['category'] as String? ?? '未設定',
           ),
         )
         .toList();
@@ -185,14 +172,11 @@ class _TodoScreenState extends State<TodoScreen> {
       final data = jsonDecode(backup) as List;
 
       for (final item in data) {
-        final key = await _todoStore.add(
-          _db,
-          {
-            'text': item['text'],
-            'dueDate': item['dueDate'],
-            'category': item['category'] ?? '未設定',
-          },
-        );
+        final key = await _todoStore.add(_db, {
+          'text': item['text'],
+          'dueDate': item['dueDate'],
+          'category': item['category'] ?? '未設定',
+        });
 
         _todos.add(
           TodoItem(
@@ -217,29 +201,17 @@ class _TodoScreenState extends State<TodoScreen> {
   }
 
   Future<void> _addSampleData() async {
-    final sampleTodos = [
-      'サンプルToDo 1',
-      'サンプルToDo 2',
-      'サンプルToDo 3',
-    ];
+    final sampleTodos = ['サンプルToDo 1', 'サンプルToDo 2', 'サンプルToDo 3'];
 
     for (final text in sampleTodos) {
-      final key = await _todoStore.add(
-        _db,
-        {
-          'text': text,
-          'dueDate': null,
-          'category': '未設定',
-        },
-      );
+      final key = await _todoStore.add(_db, {
+        'text': text,
+        'dueDate': null,
+        'category': '未設定',
+      });
 
       _todos.add(
-        TodoItem(
-          key: key,
-          text: text,
-          dueDate: null,
-          category: '未設定',
-        ),
+        TodoItem(key: key, text: text, dueDate: null, category: '未設定'),
       );
     }
 
@@ -291,14 +263,11 @@ class _TodoScreenState extends State<TodoScreen> {
       return;
     }
 
-    final key = await _todoStore.add(
-      _db,
-      {
-        'text': text,
-        'dueDate': _selectedDateTime?.toIso8601String(),
-        'category': _selectedCategory,
-      },
-    );
+    final key = await _todoStore.add(_db, {
+      'text': text,
+      'dueDate': _selectedDateTime?.toIso8601String(),
+      'category': _selectedCategory,
+    });
 
     print('Added todo with key $key: $text');
 
@@ -371,21 +340,18 @@ class _TodoScreenState extends State<TodoScreen> {
   @override
   Widget build(BuildContext context) {
     final filteredTodos = _filterCategory == 'すべて'
-    ? _todos
-    : _todos
-        .where((todo) => todo.category == _filterCategory)
-        .toList();
+        ? _todos
+        : _todos.where((todo) => todo.category == _filterCategory).toList();
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('TODOリスト'),
+        title: Text(
+          'こんにちは、${_authService.currentUser?.displayName ?? 'ゲスト'}さん',
+          style: const TextStyle(fontSize: 16),
+        ),
         actions: [
           Row(
             children: [
@@ -396,39 +362,30 @@ class _TodoScreenState extends State<TodoScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-
               PopupMenuButton<SortType>(
                 icon: const Icon(Icons.sort),
-
                 onSelected: (value) {
                   setState(() {
                     _sortType = value;
                   });
-
                   _sortTodos();
                 },
-
                 itemBuilder: (context) => const [
-                  PopupMenuItem(
-                    value: SortType.newest,
-                    child: Text('新しい順'),
-                  ),
-
-                  PopupMenuItem(
-                    value: SortType.oldest,
-                    child: Text('古い順'),
-                  ),
-
+                  PopupMenuItem(value: SortType.newest, child: Text('新しい順')),
+                  PopupMenuItem(value: SortType.oldest, child: Text('古い順')),
                   PopupMenuItem(
                     value: SortType.alphabetical,
                     child: Text('名前順'),
                   ),
-
-                  PopupMenuItem(
-                    value: SortType.dueDate,
-                    child: Text('期限順'),
-                  ),
+                  PopupMenuItem(value: SortType.dueDate, child: Text('期限順')),
                 ],
+              ),
+              IconButton(
+                icon: const Icon(Icons.person),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                ),
               ),
             ],
           ),
@@ -463,118 +420,110 @@ class _TodoScreenState extends State<TodoScreen> {
 
                 const SizedBox(height: 12),
 
-               const SizedBox(height: 12),
-
-              Row(
-  crossAxisAlignment: CrossAxisAlignment.start,
-  children: [
-    SizedBox(
-      width: 160,
-      child: DropdownButtonFormField<String>(
-        value: _selectedCategory,
-
-        decoration: const InputDecoration(
-          labelText: 'カテゴリ設定',
-          border: OutlineInputBorder(),
-        ),
-
-        items: _categories.map((category) {
-          return DropdownMenuItem(
-            value: category,
-            child: Text(category),
-          );
-        }).toList(),
-
-        onChanged: (value) {
-          if (value != null) {
-            setState(() {
-              _selectedCategory = value;
-            });
-          }
-        },
-      ),
-    ),
-
-    const SizedBox(width: 8),
-
-    Transform.translate(
-  offset: const Offset(0, -4),
-  child: SizedBox(
-    width: 160,
-    height: 56,
-    child: ElevatedButton.icon(
-      onPressed: _selectDateTime,
-      icon: const Icon(Icons.calendar_month),
-      label: Text(
-        _selectedDateTime == null
-            ? '日時設定'
-            : _formatDate(_selectedDateTime),
-        overflow: TextOverflow.ellipsis,
-      ),
-    ),
-  ),
-),
-  ],
-),
-
-              const SizedBox(height: 20),
-              const Divider(
-  height: 1,
-  thickness: 1,
-  color: Colors.black12,
-),
-              const SizedBox(height: 20),
-
-Row(
-  children: [
-    SizedBox(
-      width: 160,
-      child: DropdownButtonFormField<String>(
-        value: _filterCategory,
-
-        decoration: const InputDecoration(
-          labelText: 'カテゴリでフィルタ',
-          border: OutlineInputBorder(),
-        ),
-
-        items: [
-          const DropdownMenuItem(
-            value: 'すべて',
-            child: Text('すべて'),
-          ),
-
-          ..._categories.map(
-            (category) => DropdownMenuItem(
-              value: category,
-              child: Text(category),
-            ),
-          ),
-        ],
-
-        onChanged: (value) {
-          if (value != null) {
-            setState(() {
-              _filterCategory = value;
-            });
-          }
-        },
-      ),
-    ),
-  ],
-),
-
                 const SizedBox(height: 12),
 
-                
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 160,
+                      child: DropdownButtonFormField<String>(
+                        value: _selectedCategory,
+
+                        decoration: const InputDecoration(
+                          labelText: 'カテゴリ設定',
+                          border: OutlineInputBorder(),
+                        ),
+
+                        items: _categories.map((category) {
+                          return DropdownMenuItem(
+                            value: category,
+                            child: Text(category),
+                          );
+                        }).toList(),
+
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() {
+                              _selectedCategory = value;
+                            });
+                          }
+                        },
+                      ),
+                    ),
+
+                    const SizedBox(width: 8),
+
+                    Transform.translate(
+                      offset: const Offset(0, -4),
+                      child: SizedBox(
+                        width: 160,
+                        height: 56,
+                        child: ElevatedButton.icon(
+                          onPressed: _selectDateTime,
+                          icon: const Icon(Icons.calendar_month),
+                          label: Text(
+                            _selectedDateTime == null
+                                ? '日時設定'
+                                : _formatDate(_selectedDateTime),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 20),
+                const Divider(height: 1, thickness: 1, color: Colors.black12),
+                const SizedBox(height: 20),
+
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 160,
+                      child: DropdownButtonFormField<String>(
+                        value: _filterCategory,
+
+                        decoration: const InputDecoration(
+                          labelText: 'カテゴリでフィルタ',
+                          border: OutlineInputBorder(),
+                        ),
+
+                        items: [
+                          const DropdownMenuItem(
+                            value: 'すべて',
+                            child: Text('すべて'),
+                          ),
+
+                          ..._categories.map(
+                            (category) => DropdownMenuItem(
+                              value: category,
+                              child: Text(category),
+                            ),
+                          ),
+                        ],
+
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() {
+                              _filterCategory = value;
+                            });
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 12),
               ],
             ),
           ),
 
           Expanded(
             child: _todos.isEmpty
-                ? const Center(
-                    child: Text('データがありません'),
-                  )
+                ? const Center(child: Text('データがありません'))
                 : ListView.separated(
                     itemCount: filteredTodos.length,
 
@@ -589,7 +538,7 @@ Row(
                     },
 
                     itemBuilder: (context, index) {
-                     final todo = filteredTodos[index];
+                      final todo = filteredTodos[index];
 
                       return ListTile(
                         title: Text(todo.text),
@@ -597,26 +546,23 @@ Row(
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'カテゴリ: ${todo.category}',
-                            ),
+                            Text('カテゴリ: ${todo.category}'),
 
-                            Text(
-                              '期限: ${_formatDate(todo.dueDate)}',
-                            ),
+                            Text('期限: ${_formatDate(todo.dueDate)}'),
                           ],
                         ),
 
                         trailing: IconButton(
                           icon: const Icon(Icons.delete),
                           onPressed: () async {
-  final originalIndex =
-      _todos.indexWhere((item) => item.key == todo.key);
+                            final originalIndex = _todos.indexWhere(
+                              (item) => item.key == todo.key,
+                            );
 
-  if (originalIndex != -1) {
-    await _removeTodo(originalIndex);
-  }
-},
+                            if (originalIndex != -1) {
+                              await _removeTodo(originalIndex);
+                            }
+                          },
                         ),
                       );
                     },
