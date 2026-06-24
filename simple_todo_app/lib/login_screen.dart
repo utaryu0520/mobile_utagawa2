@@ -11,7 +11,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _usernameController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _authService = AuthService();
 
@@ -20,7 +20,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
-    _usernameController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -32,7 +32,7 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     final result = await _authService.login(
-      username: _usernameController.text.trim(),
+      email: _emailController.text.trim(),
       password: _passwordController.text,
     );
 
@@ -74,13 +74,14 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
             TextField(
-              controller: _usernameController,
+              controller: _emailController,
               decoration: const InputDecoration(
-                labelText: 'ユーザー名',
+                labelText: 'メールアドレス',
                 border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.person),
+                prefixIcon: Icon(Icons.email),
               ),
               enabled: !_isLoading,
+              keyboardType: TextInputType.emailAddress,
             ),
             const SizedBox(height: 16),
             TextField(

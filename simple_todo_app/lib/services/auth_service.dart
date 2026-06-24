@@ -141,7 +141,7 @@ class AuthService {
 
   // ログイン
   Future<({bool success, String message, User? user})> login({
-    required String username,
+    required String email,
     required String password,
   }) async {
     try {
@@ -150,14 +150,14 @@ class AuthService {
         _db,
         finder: Finder(
           filter: Filter.custom((record) {
-            return record['username'] == username &&
+            return record['email'] == email &&
                 record['passwordHash'] == passwordHash;
           }),
         ),
       );
 
       if (records.isEmpty) {
-        return (success: false, message: 'ユーザー名またはパスワードが正しくありません', user: null);
+        return (success: false, message: 'メールアドレスまたはパスワードが正しくありません', user: null);
       }
 
       final user = User.fromMap(records.first.value);
