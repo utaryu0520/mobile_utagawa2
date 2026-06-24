@@ -157,7 +157,11 @@ class AuthService {
       );
 
       if (records.isEmpty) {
-        return (success: false, message: 'メールアドレスまたはパスワードが正しくありません', user: null);
+        return (
+          success: false,
+          message: 'メールアドレスまたはパスワードが正しくありません',
+          user: null,
+        );
       }
 
       final user = User.fromMap(records.first.value);

@@ -363,6 +363,7 @@ class _TodoScreenState extends State<TodoScreen> {
                 ),
               ),
               PopupMenuButton<SortType>(
+                tooltip: '並び替え',
                 icon: const Icon(Icons.sort),
                 onSelected: (value) {
                   setState(() {
