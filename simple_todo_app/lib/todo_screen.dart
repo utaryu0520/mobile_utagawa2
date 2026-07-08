@@ -14,12 +14,14 @@ final StoreRef<int, Map<String, dynamic>> _todoStore = intMapStoreFactory.store(
 
 class TodoItem {
   final int key;
+  final String userId;
   final String text;
   final DateTime? dueDate;
   final String category;
 
   TodoItem({
     required this.key,
+    required this.userId,
     required this.text,
     this.dueDate,
     required this.category,
@@ -38,6 +40,8 @@ class TodoScreen extends StatefulWidget {
 class _TodoScreenState extends State<TodoScreen> {
   final TextEditingController _controller = TextEditingController();
   final _authService = AuthService();
+
+  String get _userId => _authService.currentUser!.id;
 
   late Database _db;
 
@@ -127,6 +131,7 @@ class _TodoScreenState extends State<TodoScreen> {
         .map(
           (todo) => {
             'key': todo.key,
+            'userId': todo.userId,
             'text': todo.text,
             'dueDate': todo.dueDate?.toIso8601String(),
             'category': todo.category,
@@ -134,23 +139,29 @@ class _TodoScreenState extends State<TodoScreen> {
         )
         .toList();
 
-    await prefs.setString('todos_backup', jsonEncode(data));
+    await prefs.setString('todos_backup_$_userId', jsonEncode(data));
 
-    print('Backed up ${data.length} todos to SharedPreferences');
+    print(
+      'Backed up ${data.length} todos to SharedPreferences for user $_userId',
+    );
   }
 
   Future<void> _loadTodos() async {
     final records = await _todoStore.find(
       _db,
-      finder: Finder(sortOrders: [SortOrder(Field.key)]),
+      finder: Finder(
+        filter: Filter.equals('userId', _userId),
+        sortOrders: [SortOrder(Field.key)],
+      ),
     );
 
-    print('Loaded ${records.length} todos from DB');
+    print('Loaded ${records.length} todos from DB for user $_userId');
 
     _todos = records
         .map(
           (snapshot) => TodoItem(
             key: snapshot.key,
+            userId: snapshot.value['userId'] as String,
             text: snapshot.value['text'] as String,
             dueDate: snapshot.value['dueDate'] != null
                 ? DateTime.parse(snapshot.value['dueDate'] as String)
@@ -166,13 +177,14 @@ class _TodoScreenState extends State<TodoScreen> {
   Future<bool> _restoreFromSharedPreferences() async {
     final prefs = await SharedPreferences.getInstance();
 
-    final backup = prefs.getString('todos_backup');
+    final backup = prefs.getString('todos_backup_$_userId');
 
     if (backup != null && backup.isNotEmpty) {
       final data = jsonDecode(backup) as List;
 
       for (final item in data) {
         final key = await _todoStore.add(_db, {
+          'userId': _userId,
           'text': item['text'],
           'dueDate': item['dueDate'],
           'category': item['category'] ?? '未設定',
@@ -181,6 +193,7 @@ class _TodoScreenState extends State<TodoScreen> {
         _todos.add(
           TodoItem(
             key: key,
+            userId: _userId,
             text: item['text'],
             dueDate: item['dueDate'] != null
                 ? DateTime.parse(item['dueDate'])
@@ -205,13 +218,20 @@ class _TodoScreenState extends State<TodoScreen> {
 
     for (final text in sampleTodos) {
       final key = await _todoStore.add(_db, {
+        'userId': _userId,
         'text': text,
         'dueDate': null,
         'category': '未設定',
       });
 
       _todos.add(
-        TodoItem(key: key, text: text, dueDate: null, category: '未設定'),
+        TodoItem(
+          key: key,
+          userId: _userId,
+          text: text,
+          dueDate: null,
+          category: '未設定',
+        ),
       );
     }
 
@@ -264,17 +284,19 @@ class _TodoScreenState extends State<TodoScreen> {
     }
 
     final key = await _todoStore.add(_db, {
+      'userId': _userId,
       'text': text,
       'dueDate': _selectedDateTime?.toIso8601String(),
       'category': _selectedCategory,
     });
 
-    print('Added todo with key $key: $text');
+    print('Added todo with key $key for user $_userId: $text');
 
     setState(() {
       _todos.add(
         TodoItem(
           key: key,
+          userId: _userId,
           text: text,
           dueDate: _selectedDateTime,
           category: _selectedCategory,
@@ -282,9 +304,7 @@ class _TodoScreenState extends State<TodoScreen> {
       );
 
       _controller.clear();
-
       _selectedDateTime = null;
-
       _selectedCategory = '未設定';
     });
 
